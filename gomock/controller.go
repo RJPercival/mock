@@ -172,18 +172,13 @@ func (ctrl *Controller) Finish() {
 	}
 
 	// Check that all remaining expected calls are satisfied.
-	failures := false
 	for _, methodMap := range ctrl.expectedCalls {
 		for _, calls := range methodMap {
 			for _, call := range calls {
 				if !call.satisfied() {
 					ctrl.t.Errorf("%smissing call(s) to %v", call.ctx, call)
-					failures = true
 				}
 			}
 		}
-	}
-	if failures {
-		ctrl.t.Fatalf("aborting test due to missing call(s)")
 	}
 }
