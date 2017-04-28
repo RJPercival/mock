@@ -76,6 +76,7 @@ type Controller struct {
 	mu            sync.Mutex
 	t             TestReporter
 	expectedCalls callSet
+	ctx           string
 }
 
 func NewController(t TestReporter) *Controller {
@@ -83,6 +84,10 @@ func NewController(t TestReporter) *Controller {
 		t:             t,
 		expectedCalls: make(callSet),
 	}
+}
+
+func (ctrl *Controller) Context(ctx string) {
+	ctrl.ctx = ctx + ": "
 }
 
 func (ctrl *Controller) RecordCall(receiver interface{}, method string, args ...interface{}) *Call {
@@ -115,7 +120,7 @@ func (ctrl *Controller) RecordCallWithMethodType(receiver interface{}, method st
 	ctrl.mu.Lock()
 	defer ctrl.mu.Unlock()
 
-	call := &Call{t: ctrl.t, receiver: receiver, method: method, methodType: methodType, args: margs, minCalls: 1, maxCalls: 1}
+	call := &Call{t: ctrl.t, ctx: ctrl.ctx, receiver: receiver, method: method, methodType: methodType, args: margs, minCalls: 1, maxCalls: 1}
 
 	ctrl.expectedCalls.Add(call)
 	return call
@@ -127,7 +132,7 @@ func (ctrl *Controller) Call(receiver interface{}, method string, args ...interf
 
 	expected := ctrl.expectedCalls.FindMatch(receiver, method, args)
 	if expected == nil {
-		ctrl.t.Fatalf("no matching expected call: %T.%v(%v)\n%s", receiver, method, args, debug.Stack())
+		ctrl.t.Fatalf("%sno matching expected call: %T.%v(%v)\n%s", ctrl.ctx, receiver, method, args, debug.Stack())
 	}
 
 	// Two things happen here:
@@ -172,7 +177,7 @@ func (ctrl *Controller) Finish() {
 		for _, calls := range methodMap {
 			for _, call := range calls {
 				if !call.satisfied() {
-					ctrl.t.Errorf("missing call(s) to %v", call)
+					ctrl.t.Errorf("%smissing call(s) to %v", call.ctx, call)
 					failures = true
 				}
 			}

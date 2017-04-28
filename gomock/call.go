@@ -23,7 +23,8 @@ import (
 
 // Call represents an expected call to a mock.
 type Call struct {
-	t TestReporter // for triggering test failures on invalid call setup
+	t   TestReporter // for triggering test failures on invalid call setup
+	ctx string       // test context
 
 	receiver   interface{}   // the receiver of the method call
 	method     string        // the name of the method
