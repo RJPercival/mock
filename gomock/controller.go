@@ -155,10 +155,24 @@ func (ctrl *Controller) Call(receiver interface{}, method string, args ...interf
 	return rets
 }
 
-func (ctrl *Controller) Finish() {
+func (ctrl *Controller) MissingCalls() []*Call {
 	ctrl.mu.Lock()
 	defer ctrl.mu.Unlock()
 
+	var missingCalls []*Call
+	for _, methodMap := range ctrl.expectedCalls {
+		for _, calls := range methodMap {
+			for _, call := range calls {
+				if !call.satisfied() {
+					missingCalls = append(missingCalls, call)
+				}
+			}
+		}
+	}
+	return missingCalls
+}
+
+func (ctrl *Controller) Finish() {
 	// If we're currently panicking, probably because this is a deferred call,
 	// pass through the panic.
 	if err := recover(); err != nil {
@@ -166,18 +180,12 @@ func (ctrl *Controller) Finish() {
 	}
 
 	// Check that all remaining expected calls are satisfied.
-	failures := false
-	for _, methodMap := range ctrl.expectedCalls {
-		for _, calls := range methodMap {
-			for _, call := range calls {
-				if !call.satisfied() {
-					ctrl.t.Errorf("missing call(s) to %v", call)
-					failures = true
-				}
-			}
-		}
+	missingCalls := ctrl.MissingCalls()
+	for _, call := range missingCalls {
+		ctrl.t.Errorf("missing call(s) to %v", call)
 	}
-	if failures {
+
+	if len(missingCalls) > 0 {
 		ctrl.t.Fatalf("aborting test due to missing call(s)")
 	}
 }
